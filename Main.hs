@@ -41,14 +41,34 @@ type Vertex2 = Vertex (V2 Int)
 vertex2_to_f :: Vertex2 -> V2 Double
 vertex2_to_f vertex = fmap (fromIntegral) (verts vertex)
 
+-- Given a comparison vector, return it updated with any new max
+vertex2_maxes :: V2 Int -> Vertex2 -> V2 Int
+vertex2_maxes (V2 other_x other_y) (Vertex (V2 self_x self_y) _) =
+    V2 (max self_x other_x) (max self_y other_y)
+
+-- Given a vector to compare against, return an updated version with any new
+-- minimums.
+vertex2_mins :: V2 Int -> Vertex2 -> V2 Int
+vertex2_mins (V2 other_x other_y) (Vertex (V2 self_x self_y) _) =
+    V2 (min self_x other_x) (min self_y other_y)
+
 data Surface a = Surface a a a
     deriving (Show)
 
 instance Functor Surface where
     fmap f (Surface a b c) = Surface (f a) (f b) (f c)
 
+instance Foldable Surface where
+    foldr f z (Surface a b c) = f c (f b (f a z))
+
 type Surface3D = Surface Vertex4
 type Surface2D = Surface Vertex2
+
+surface2_max :: V2 Int -> Surface2D -> V2 Int
+surface2_max init surf = foldl vertex2_maxes init surf
+
+surface2_min :: V2 Int -> Surface2D -> V2 Int
+surface2_min init surf = foldl vertex2_mins init surf
 
 -- Take a point and a surface and give the barycentric coordinates of the
 -- point relative to the surface
@@ -121,19 +141,16 @@ vertexPixels img surfaces x y = let
             in pixelAt img (round x) (round y)
         Nothing -> PixelRGBA8 0 0 0 0
 
-{-
-data Bounds =
-{   , min_x :: Int
-    , max_x :: Int
-    , min_y :: Int
-    , max_y :: Int
-}
+data Bounds = Bounds {
+    rendermin :: V2 Int,
+    rendermax :: V2 Int
+} deriving Show
 
-bounds :: [Surface2D] -> Bounds
-bounds surfaces = Bounds {
-        min_x = min . map (\s -> )
+renderBounds :: [Surface2D] -> Bounds
+renderBounds surfaces = Bounds {
+        rendermin = foldl surface2_min (V2 maxBound maxBound) surfaces,
+        rendermax = foldl surface2_max (V2 minBound minBound) surfaces
     }
--}
 
 main :: IO ()
 main = let
@@ -167,7 +184,7 @@ main = let
             (vert 1 1 0 15 0)
         ]
 
-    matrix = proj_matrix 30
+    matrix = proj_matrix 100
     projected = project matrix surfaces
 
     test_bary_surf:_ = projected
@@ -178,7 +195,9 @@ main = let
             Left err -> print err
             Right tex -> do
                 let img = convertRGBA8 tex
-                let new_img = generateImage (vertexPixels img projected) 50 50
-                --print (pixelAt img 0 0)
-                writePng "out.png" img
+                let (Bounds _ (V2 max_x max_y)) = renderBounds projected
+                let new_img = generateImage (vertexPixels img projected) max_x max_y
+                print max_x
+                print max_y
+                writePng "out.png" new_img
 
