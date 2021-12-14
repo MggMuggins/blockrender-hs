@@ -103,7 +103,7 @@ y_ROT :: Double
 y_ROT = -pi / 4
 
 x_ROT :: Double
-x_ROT = pi / 6
+x_ROT = -pi / 6
 
 proj_matrix :: Double -> M44 Double
 proj_matrix scale_fact = let
@@ -129,17 +129,31 @@ project :: M44 Double -> [Surface3D] -> [Surface2D]
 project proj_mtrx = map (fmap (project_vertex proj_mtrx))
 
 -- Image generator given some surfaces and a texture image
-vertexPixels :: Image PixelRGBA8 -> [Surface2D] -> Int -> Int -> PixelRGBA8
-vertexPixels img surfaces x y = let
-        pixel_coords = V2 x y
+vertexPixels :: Bounds -> Image PixelRGBA8 -> [Surface2D] -> Int -> Int -> PixelRGBA8
+vertexPixels bounds texture surfaces x y = let
+        pixel_coords = mapCoordinates bounds x y
     in case find (surface_has pixel_coords) surfaces of
         Just surf -> let
             bary = surface_barycentric pixel_coords surf
             (Surface a b c) = fmap tex_coords surf
             texture_coords = map (fmap fromIntegral) [a, b, c] :: [V2 Double]
             (V2 x y) = foldl1 (+) (map (\(c, b) -> c ^* b) (zip texture_coords bary))
-            in pixelAt img (round x) (round y)
+            in pixelAt texture (round x) (round y)
         Nothing -> PixelRGBA8 0 0 0 0
+
+-- The mesh sorta lives in the first quadrant, while the result image is in
+-- the fourth quadrant. This means that in order to get an accurate image of
+-- the first quadrant, we need to reflect all the y coordinates over the
+-- midpoint of the image.
+-- It also doesn't live entirely in the first quadrant: we need to "shift up"
+-- the image by mapping the actual image coordinates (x and y) to the mesh's
+-- coordinate system
+mapCoordinates :: Bounds -> Int -> Int -> V2 Int
+mapCoordinates bounds x y = let
+    (x_dim, y_dim) = outputSize bounds
+    invertedY = y_dim - y
+    Bounds (V2 min_x min_y) _ = bounds
+    in V2 (x + min_x) (invertedY + min_y)
 
 data Bounds = Bounds {
     rendermin :: V2 Int,
@@ -152,39 +166,43 @@ renderBounds surfaces = Bounds {
         rendermax = foldl surface2_max (V2 minBound minBound) surfaces
     }
 
+outputSize :: Bounds -> (Int, Int)
+outputSize (Bounds (V2 min_x min_y) (V2 max_x max_y)) =
+    (abs min_x + abs max_x, abs min_y + abs max_y)
+
 main :: IO ()
 main = let
-    surfaces =[
-        -- z = 0 plane
-        Surface
-            (vert 0 0 0 0 0)
-            (vert 0 1 0 0 15)
-            (vert 1 0 0 15 0),
-        Surface
-            (vert 1 1 0 15 15)
-            (vert 0 1 0 0 15)
-            (vert 1 0 0 15 0),
-        -- x = 1 plane
-        Surface
-            (vert 1 0 0 0 0)
-            (vert 1 1 0 0 15)
-            (vert 1 0 1 15 0),
-        Surface
-            (vert 1 1 1 15 15)
-            (vert 1 1 0 0 15)
-            (vert 1 0 1 15 0),
+    surfaces = [
         -- y = 1 plane
         Surface
-            (vert 0 1 0 0 0)
-            (vert 0 1 1 0 15)
-            (vert 1 1 0 15 0),
+            (vert 0 1 0 15 15)
+            (vert 0 1 1 15 0)
+            (vert 1 1 0 0 15),
         Surface
-            (vert 1 1 1 15 15)
-            (vert 0 1 1 0 15)
+            (vert 1 1 1 0 0)
+            (vert 0 1 1 15 0)
+            (vert 1 1 0 0 15),
+        -- z = 0 plane
+        Surface
+            (vert 0 0 0 15 15)
+            (vert 0 1 0 15 0)
+            (vert 1 0 0 0 15),
+        Surface
+            (vert 1 1 0 0 0)
+            (vert 0 1 0 15 0)
+            (vert 1 0 0 0 15),
+        -- x = 1 plane
+        Surface
+            (vert 1 0 0 15 15)
             (vert 1 1 0 15 0)
+            (vert 1 0 1 0 15),
+        Surface
+            (vert 1 1 1 0 0)
+            (vert 1 1 0 15 0)
+            (vert 1 0 1 0 15)
         ]
 
-    matrix = proj_matrix 100
+    matrix = proj_matrix 800
     projected = project matrix surfaces
 
     test_bary_surf:_ = projected
@@ -195,9 +213,12 @@ main = let
             Left err -> print err
             Right tex -> do
                 let img = convertRGBA8 tex
-                let (Bounds _ (V2 max_x max_y)) = renderBounds projected
-                let new_img = generateImage (vertexPixels img projected) max_x max_y
-                print max_x
-                print max_y
+                let bounds = renderBounds projected
+                let (Bounds (V2 min_x min_y) (V2 max_x max_y)) = bounds
+                let (x_dim, y_dim) = outputSize bounds
+                let new_img = generateImage (vertexPixels bounds img projected) x_dim y_dim
+                print projected
+                putStrLn ("x bounds: [" ++ show min_x ++ ", " ++ show max_x ++ "]")
+                putStrLn ("y bounds: [" ++ show min_y ++ ", " ++ show max_y ++ "]")
                 writePng "out.png" new_img
 
