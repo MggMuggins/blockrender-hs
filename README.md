@@ -20,22 +20,22 @@ I started out this project with a couple of helpful legs up:
   structural ideas that carried over fairly easily.
 - The availability of Haskell libraries to do png formatting and vector algebra
   was incredibly helpful: they had essentially the same functionality that the
-  Rust libraries did, so there was very little translation needed to shift
-  stacks.
+  Rust libraries did, so there was very little additional development needed to
+  shift my exsiting design to Haskell.
 
-Haskell is unlike any language I have ever written code in. While it shares some
-big ideas with other languages I've seen (currying in ReasonML), crazy powerful
-strong typing and first class functions, the design patterns are so different
-that I feel like I'm almost starting from square one with programming again (the
-code really obviously reflects that...). One of the things that made Haskell
-hard is that I was unabled to reason about my code by the way data is actually
-represented on the machine (or some heuristic for the machine representation).
-My unfamiliarity with the type system and the insistence on functional purity
-meant that all bets were off when I tried to think about what data exactly was
-going on: I suspect that laziness also made it more difficult to visualize my
-data structures.
+Haskell is unlike any language I have ever written code in. It shares some
+big ideas with other languages I've seen: currying in ReasonML, crazy powerful
+strong typing and first class functions; however, the design patterns are so
+different that I feel like I'm almost starting from square one with
+programming again (the code really obviously reflects that...). One of the
+things that made Haskell hard is that I was unabled to reason about my code
+by the way data is actually represented on the machine (or some heuristic
+for the machine representation). My unfamiliarity with the type system and
+the insistence on functional purity meant that all bets were off when I tried
+to think about what exactly was going on with my data. I suspect that laziness
+also made it more difficult to visualize my data structures.
 
-The syntactic differences played in to this problem as well: it took me a while
+The syntactic differences played into this problem as well: it took me a while
 to get the hang of pattern matching instead of named parameters. I organize my
 thoughts around inputs and outputs to functions, and when functions become
 parameters in ways that are non-trivial (`vertexPixels` or `renderBounds` in the
@@ -56,13 +56,13 @@ There were several times where I felt like there was probably a better way of
 doing something but I didn't know enough of the idioms to figure it out (looking
 at you, monads). However, I was able to apply the `Functor` and `Foldable`
 typeclasses some, which did feel like a reasonable solution to eliminating
-boilerplate. I remember writing a lot of boilerplate when solving this problem
+boilerplate. I remember writing a lot more boilerplate when solving this problem
 in Rust.
 
 There were other things I quite enjoyed in the development process: I very often
 wrote code that worked or sorta worked the first time if it compiled. I'm sure I
 spent less time debugging than I did in Rust. The code is also 224 lines, a
-reduction of roughly 50% from the rust version. While being super concise is not
+reduction of roughly 50% from the Rust version. While being super concise is not
 always a plus, it at least made it easier to traverse the (very complicated)
 codebase when debugging and working towards a successful compile.
 
@@ -78,9 +78,10 @@ documentation with a beginner's exposure to the type system. I did not rely
 much on StackOverflow and was able to use the documentation to produce most of
 my code.
 
-Altogether it was really cool to have an excuse to struggle through writing some
+Altogether, it was really cool to have an excuse to struggle through writing some
 Haskell. I might be a bit hesitant to start another project in it because of the
 learning curve, but it was good to see a different approach to writing code and
 interesting to think about the ways that my design changed when I moved in to
-Haskell.
+Haskell. I'm certainly more confident when it comes to looking at and working
+with code written in a functional language.
 
